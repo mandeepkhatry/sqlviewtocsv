@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import hashlib
 from datetime import date
+from datetime import datetime
 import uuid
 
 
@@ -42,18 +43,6 @@ class ViewFetcher(object):
         self.config = config
         self.dbconnection, self.engine = _configure_db_connection(config)
 
-    #CreateDynamicSQL takes config as input and returns the dynamic sql created
-    def create_dynamic_sql(self, progress):
-        if progress == None:
-            progress = self.config["start_date"]
-
-        today_date = date.today()
-        account_parts = ' OR '.join(["{account_field_name}='{account_number}'".format(account_field_name=self.config['account_field_name'], account_number=account_number) for account_number in self.config['account_numbers']])
-
-        query = "select {fields} from {view} where ({account_query}) and ({txn_date_field_name} >= '{progress}' and {txn_date_field_name} < '{today}')"
-        query = query.format(fields = ','.join(self.config["fields"]), view = self.config["view_name"], account_query = account_parts, account_field = self.config["account_field_name"], txn_date_field_name = self.config["txn_date_field_name"], progress = progress, today = today_date)
-        return query
-
     #ExecuteSQL takes db connection instance and query as input, executes query and returns engine result
     def execute_sql(self,query):
         sql = text(query)
@@ -74,12 +63,40 @@ class ViewFetcher(object):
             wr.writerows(data)
 
         w_file.close
+
+    def compute_start_date(self,progress):
+        if progress is None:
+            progress = {}
+
+        start_date = progress.get('to_date')
+        
+        if start_date is None:
+            start_date = self.config['from_date']
+        return start_date
+
+
+    def prepare_query(self):
+
+        query = self.config['query'].format()
+
+        return query
+
+    def execute_query(self, progress):
+        start_date = self.compute_start_date(progress)
+        end_date = date.today()
+
+        acc_no=self.config['account_number']
+
+        sql_query = self.prepare_query()
+        #parameters inside query : start_date, end_date, account_num 
+        result = self.dbconnection.execute(text(sql_query), start_date=start_date, end_date=end_date, account_num=acc_no)
+        
+        progress = {'to_date': str(end_date)}
+        return result
     
     def run(self, root, progress):
     
-        sql_query = self.create_dynamic_sql(progress)
-
-        result = self.execute_sql(sql_query)
+        result = self.execute_query(progress)
 
         path = "{root}{name}.csv".format(root = root,name=uuid.uuid4().hex)
         self.write_csv_file(path, result)

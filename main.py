@@ -8,17 +8,14 @@ config = {
     "password"              : "rootpasswordgiven",
     "host"                  : "localhost",
     "dbname"                : "employee",
-    "date"                  : "",
-    "fields"                : ["firstname","email", "reg_date"],
-    "account_field_name"    : "id",
-    "account_numbers"       : ["1","2","5"],
-    "txn_date_field_name"   : "reg_date",
-    "view_name"             : "myaccount",
-    "start_date"            : "2020-01-28"
+    "account_number"        :  "1",
+    "query"                 : "select * from myaccount where (id = :account_num) and (reg_date > :start_date and reg_date < :end_date)",
+    "from_date"             : "2020-01-28"
 }
 
 root = "./"
-progress = None
+
+progress = {"to_date" : "2020-01-23"}
 
 vf = ViewFetcher(config)
 print(vf.run(root,progress))
